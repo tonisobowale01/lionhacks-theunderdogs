@@ -12,15 +12,19 @@ import {
   Group,
   Box,
   UnstyledButton,
+  Loader,
 } from "@mantine/core";
 import { IconCheck, IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import { useApp } from "../context/AppContext";
+import { submitSurvey } from "../services/api";
+import { notifications } from "@mantine/notifications";
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { setUserData } = useApp();
+  const { setUserData, setPlan } = useApp();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const q = QUESTIONS[step];
   const value = answers[q.key] || "";
@@ -29,11 +33,24 @@ const Onboarding = () => {
 
   const setVal = (v) => setAnswers((a) => ({ ...a, [q.key]: v }));
 
-  const next = () => {
-    if (!canAdvance) return;
+  const next = async () => {
+    if (!canAdvance || loading) return;
     if (isLast) {
-      setUserData(answers);
-      navigate("/upload");
+      setLoading(true);
+      try {
+        const { data } = await submitSurvey(answers);
+        setUserData(answers);
+        if (data.plan) setPlan(data.plan);
+        navigate("/upload");
+      } catch (err) {
+        notifications.show({
+          title: "Onboarding Error",
+          message: err.response?.data?.message || err.message,
+          color: "red",
+        });
+      } finally {
+        setLoading(false);
+      }
     } else {
       setStep((s) => s + 1);
     }
@@ -168,9 +185,11 @@ const Onboarding = () => {
         </Button>
         <Button
           onClick={next}
-          disabled={!canAdvance}
+          disabled={!canAdvance || loading}
           size="lg"
-          rightSection={<IconArrowRight size={16} />}
+          rightSection={
+            loading ? <Loader size={16} /> : <IconArrowRight size={16} />
+          }
         >
           {isLast ? "Continue to syllabus" : "Next"}
         </Button>

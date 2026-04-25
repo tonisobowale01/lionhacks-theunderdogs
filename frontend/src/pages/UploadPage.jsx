@@ -19,7 +19,7 @@ import {
   IconArrowRight,
 } from "@tabler/icons-react";
 import { useApp } from "../context/AppContext";
-import { processSyllabus, generateStudyPlan } from "./mockApi";
+import { processSyllabus, generateStudyPlan } from "../services/api";
 
 const Upload = () => {
   const navigate = useNavigate();
@@ -51,11 +51,16 @@ const Upload = () => {
       setStage("uploading");
       await new Promise((r) => setTimeout(r, 600));
       setStage("analyzing");
-      const { extractedTitle } = await processSyllabus(file);
+      const {
+        data: { extractedTitle },
+      } = await processSyllabus(file);
       setSyllabusTitle(extractedTitle);
       setStage("planning");
-      const plan = await generateStudyPlan(userData, extractedTitle);
-      setPlan(plan);
+      const { data: planData } = await generateStudyPlan(
+        userData,
+        extractedTitle,
+      );
+      setPlan(planData);
       setStage("done");
       setTimeout(() => navigate("/dashboard"), 700);
     } catch (e) {
@@ -69,8 +74,8 @@ const Upload = () => {
 
   const skip = async () => {
     setStage("planning");
-    const plan = await generateStudyPlan(userData);
-    setPlan(plan);
+    const { data: planData } = await generateStudyPlan(userData);
+    setPlan(planData);
     setStage("done");
     setTimeout(() => navigate("/dashboard"), 500);
   };

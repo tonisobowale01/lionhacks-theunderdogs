@@ -9,7 +9,7 @@ if (!apiKey || apiKey === "YOUR_API_KEY") {
 }
 
 const genAI = new GoogleGenerativeAI(
-  apiKey || "AIzaSyAzBfk3l9mjQ71s-gD-fVwMsBjUIUtEcJI",
+  apiKey || "",
 );
 const cache = new Map();
 

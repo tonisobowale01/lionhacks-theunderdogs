@@ -1,9 +1,9 @@
 require("dotenv").config();
-const { GoogleGenAI } = require("@google/genai");
+// 1. Correct package name
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const ai = new GoogleGenAI({
-	apiKey: process.env.GEMINI_API_KEY || 'AIzaSyAKKgGrGHOolt_nNpXAN5BQK9ksp8U3Rbw',
-});
+// 2. Correct initialization
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const cache = new Map();
 
 async function callGemini(prompt, cacheKey) {
@@ -13,41 +13,49 @@ async function callGemini(prompt, cacheKey) {
 	}
 
 	const start = Date.now();
-	const response = await ai.models.generateContent({
-		model: "gemini-2.0-flash",
-		contents: prompt,
-	});
-	console.log(`Gemini response took ${Date.now() - start}ms`);
-	cache.set(cacheKey, response.text);
-  console.log(response.text);
-	return response.text;
+
+	try {
+		// 3. Get the model instance first
+		const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+		// 4. Correct method call structure
+		const result = await model.generateContent(prompt);
+		const response = await result.response;
+		const text = response.text();
+
+		console.log(`Gemini response took ${Date.now() - start}ms`);
+		cache.set(cacheKey, text);
+		return text;
+	} catch (error) {
+		console.error("Gemini API Error:", error);
+		throw error; // Let the caller handle the specific failure
+	}
 }
 
 async function generateSyllabus(plan) {
 	try {
-		const prompt = require("../prompts/syllabus")(plan);
+		const promptGenerator = require("../prompts/syllabus");
+		const prompt = promptGenerator(plan);
 		const cacheKey = `syllabus:${JSON.stringify(plan)}`;
 
-    console.log(callGemini(prompt, cacheKey));
 		return await callGemini(prompt, cacheKey);
 	} catch (error) {
-		console.error("Error generating syllabus:", error.message || error);
+		console.error("Error generating syllabus:", error.message);
 		return "Syllabus generation failed. Please try again.";
 	}
 }
 
 async function generateDailyPlan(plan) {
 	try {
-		const prompt = require("../prompts/study")(plan);
+		const promptGenerator = require("../prompts/study");
+		const prompt = promptGenerator(plan);
 		const cacheKey = `daily:${JSON.stringify(plan)}`;
+
 		return await callGemini(prompt, cacheKey);
 	} catch (error) {
-		console.error("Error generating daily plan:", error.message || error);
+		console.error("Error generating daily plan:", error.message);
 		return "Daily plan generation failed. Please try again.";
 	}
 }
 
 module.exports = { generateSyllabus, generateDailyPlan };
-
-generateSyllabus([{ week: 1, focus: "algebra", hours: 5 }]);
-generateDailyPlan([{ week: 1, focus: "algebra", hours: 5 }]);

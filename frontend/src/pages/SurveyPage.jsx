@@ -1,12 +1,22 @@
 import { QUESTIONS } from "../onboarding/onboarding";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppShell, Button, Input, Textarea } from "@mantine/core";
+import {
+  Container,
+  Button,
+  TextInput,
+  Textarea,
+  Text,
+  Title,
+  Stack,
+  Group,
+  Box,
+  UnstyledButton,
+} from "@mantine/core";
 import { IconCheck, IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  // const { setUserData } = useApp(); // Note: useApp is not defined in provided context
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
 
@@ -29,106 +39,140 @@ const Onboarding = () => {
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   return (
-    <AppShell>
-      <section className="container max-w-2xl pt-12 pb-24">
-        {/* Progress */}
-        <div className="flex items-center gap-1.5 mb-12">
-          {QUESTIONS.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1 flex-1 rounded-full transition-all duration-500 ${
-                i <= step ? "bg-accent" : "bg-border"
-              }`}
+    <Container size="sm" pt={48} pb={96}>
+      {/* Progress Bar */}
+      <Group gap={6} mb={48}>
+        {QUESTIONS.map((_, i) => (
+          <Box
+            key={i}
+            flex={1}
+            h={4}
+            style={(theme) => ({
+              borderRadius: theme.radius.xl,
+              backgroundColor:
+                i <= step
+                  ? "var(--mantine-color-blue-filled)"
+                  : "var(--mantine-color-gray-2)",
+              transition: "background-color 0.3s ease",
+            })}
+          />
+        ))}
+      </Group>
+
+      <Text size="xs" tt="uppercase" lts="0.2em" c="dimmed" mb="xs">
+        Question {step + 1} of {QUESTIONS.length}
+      </Text>
+
+      <Box key={step}>
+        <Title order={1} fw={600} style={{ lineHeight: 1.1 }}>
+          {q.label}
+        </Title>
+        <Text mt="md" c="dimmed" size="lg">
+          {q.helper}
+        </Text>
+
+        <Box mt={40}>
+          {q.type === "input" && (
+            <TextInput
+              autoFocus
+              size="lg"
+              value={value}
+              placeholder={q.placeholder}
+              onChange={(e) => setVal(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && next()}
+              styles={{ input: { height: 56, fontSize: "1.125rem" } }}
             />
-          ))}
-        </div>
-
-        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
-          Question {step + 1} of {QUESTIONS.length}
-        </div>
-
-        <div key={step} className="animate-fade-up">
-          <h1 className="font-serif-display text-4xl md:text-5xl font-semibold text-ink leading-tight">
-            {q.label}
-          </h1>
-          <p className="mt-4 text-muted-foreground text-lg">{q.helper}</p>
-
-          <div className="mt-10">
-            {q.type === "input" && (
-              <Input
-                autoFocus
-                value={value}
-                placeholder={q.placeholder}
-                onChange={(e) => setVal(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && next()}
-                className="h-14 text-lg bg-card border-border"
-              />
-            )}
-            {q.type === "textarea" && (
-              <Textarea
-                autoFocus
-                value={value}
-                placeholder={q.placeholder}
-                onChange={(e) => setVal(e.target.value)}
-                rows={4}
-                className="text-lg bg-card border-border resize-none"
-              />
-            )}
-            {q.type === "choice" && (
-              <div className="grid gap-2.5">
-                {q.options.map((opt) => {
-                  const selected = value === opt;
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => setVal(opt)}
-                      className={`group flex items-center justify-between rounded-lg border p-4 text-left transition-all ${
+          )}
+          {q.type === "textarea" && (
+            <Textarea
+              autoFocus
+              size="lg"
+              value={value}
+              placeholder={q.placeholder}
+              onChange={(e) => setVal(e.target.value)}
+              rows={4}
+              styles={{ input: { fontSize: "1.125rem" } }}
+            />
+          )}
+          {q.type === "choice" && (
+            <Stack gap="sm">
+              {q.options.map((opt) => {
+                const selected = value === opt;
+                return (
+                  <UnstyledButton
+                    key={opt}
+                    onClick={() => setVal(opt)}
+                    p="md"
+                    radius="md"
+                    style={(theme) => ({
+                      border: `1px solid ${
                         selected
-                          ? "border-accent bg-accent/5 shadow-paper"
-                          : "border-border bg-card hover:border-foreground/20"
-                      }`}
+                          ? "var(--mantine-color-blue-filled)"
+                          : "var(--mantine-color-gray-3)"
+                      }`,
+                      backgroundColor: selected
+                        ? "var(--mantine-color-blue-light)"
+                        : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      transition: "all 0.2s ease",
+                      "&:hover": {
+                        borderColor: selected
+                          ? "var(--mantine-color-blue-filled)"
+                          : "var(--mantine-color-gray-5)",
+                      },
+                    })}
+                  >
+                    <Text fw={selected ? 500 : 400}>{opt}</Text>
+                    <Box
+                      style={{
+                        height: 20,
+                        width: 20,
+                        borderRadius: "50%",
+                        border: `2px solid ${
+                          selected
+                            ? "var(--mantine-color-blue-filled)"
+                            : "var(--mantine-color-gray-3)"
+                        }`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: selected
+                          ? "var(--mantine-color-blue-filled)"
+                          : "transparent",
+                        color: "white",
+                      }}
                     >
-                      <span
-                        className={`text-base ${selected ? "text-foreground font-medium" : "text-foreground/80"}`}
-                      >
-                        {opt}
-                      </span>
-                      <div
-                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition ${
-                          selected ? "border-accent bg-accent" : "border-border"
-                        }`}
-                      >
-                        {selected && <IconCheck size={12} />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+                      {selected && <IconCheck size={12} />}
+                    </Box>
+                  </UnstyledButton>
+                );
+              })}
+            </Stack>
+          )}
+        </Box>
+      </Box>
 
-        <div className="mt-12 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={back}
-            disabled={step === 0}
-            className="gap-2"
-          >
-            <IconArrowLeft size={16} /> Back
-          </Button>
-          <Button
-            onClick={next}
-            disabled={!canAdvance}
-            size="lg"
-            className="gap-2 h-12 px-6"
-          >
-            {isLast ? "Continue to syllabus" : "Next"}{" "}
-            <IconArrowRight size={16} />
-          </Button>
-        </div>
-      </section>
-    </AppShell>
+      <Group justify="space-between" mt={48}>
+        <Button
+          variant="subtle"
+          onClick={back}
+          disabled={step === 0}
+          leftSection={<IconArrowLeft size={16} />}
+        >
+          Back
+        </Button>
+        <Button
+          onClick={next}
+          disabled={!canAdvance}
+          size="lg"
+          rightSection={<IconArrowRight size={16} />}
+        >
+          {isLast ? "Continue to syllabus" : "Next"}
+        </Button>
+      </Group>
+    </Container>
   );
 };
 

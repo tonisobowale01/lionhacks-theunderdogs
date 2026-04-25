@@ -18,12 +18,12 @@ import {
   IconCheck,
   IconArrowRight,
 } from "@tabler/icons-react";
-// import { useApp } from "../context/AppContext";
-// import { processSyllabus, generateStudyPlan } from "../lib/mockApi";
+import { useApp } from "../context/AppContext";
+import { processSyllabus, generateStudyPlan } from "./mockApi";
 
 const Upload = () => {
   const navigate = useNavigate();
-  // const { userData, setSyllabusTitle, setPlan } = useApp();
+  const { userData, setSyllabusTitle, setPlan } = useApp();
   const [file, setFile] = useState(null);
   const [stage, setStage] = useState("idle");
   const inputRef = useRef(null);
@@ -51,11 +51,11 @@ const Upload = () => {
       setStage("uploading");
       await new Promise((r) => setTimeout(r, 600));
       setStage("analyzing");
-      // const { extractedTitle } = await processSyllabus(file);
-      // setSyllabusTitle(extractedTitle);
+      const { extractedTitle } = await processSyllabus(file);
+      setSyllabusTitle(extractedTitle);
       setStage("planning");
-      // const plan = await generateStudyPlan(userData, extractedTitle);
-      // setPlan(plan);
+      const plan = await generateStudyPlan(userData, extractedTitle);
+      setPlan(plan);
       setStage("done");
       setTimeout(() => navigate("/dashboard"), 700);
     } catch (e) {
@@ -69,8 +69,8 @@ const Upload = () => {
 
   const skip = async () => {
     setStage("planning");
-    // const plan = await generateStudyPlan(userData);
-    // setPlan(plan);
+    const plan = await generateStudyPlan(userData);
+    setPlan(plan);
     setStage("done");
     setTimeout(() => navigate("/dashboard"), 500);
   };

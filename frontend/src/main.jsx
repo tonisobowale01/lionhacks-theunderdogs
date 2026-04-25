@@ -4,14 +4,17 @@ import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
+import { AppProvider } from "./context/AppContext";
 import "./index.css";
 import App from "./App.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <MantineProvider>
-      <Notifications />
-      <App />
+      <AppProvider>
+        <Notifications />
+        <App />
+      </AppProvider>
     </MantineProvider>
   </StrictMode>,
 );

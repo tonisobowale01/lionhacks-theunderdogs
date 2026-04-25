@@ -1,5 +1,5 @@
 import { Button, Card, Group, Stack, Text } from "@mantine/core";
-import { IconFileUploadFilled, IconCalendarEventFilled, IconSparkles, IconSparklesFilled } from "@tabler/icons-react";
+import { IconFileUploadFilled, IconCalendarEventFilled, IconSparklesFilled } from "@tabler/icons-react";
 
 function HomePage() {
   return (

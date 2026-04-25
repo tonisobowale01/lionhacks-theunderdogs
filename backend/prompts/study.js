@@ -1,9 +1,10 @@
-module.exports = (plan) => `
+module.exports = (plan, title, syllabusText) => `
 You are an encouraging daily planner. Create a personalized weekly study schedule:
 
-**Student profile:** ${plan.courses?.[0]?.studyPlan?.[0]?.focus || "Adaptive learner"}
-**Weekly hours available:** ${plan.courses?.[0]?.studyPlan?.reduce((sum, p) => sum + p.durationMin, 0) / 60 || 8} hours
-**Key topics:** ${plan.courses?.[0]?.topics?.map((t) => t.title).join(", ") || "Main subjects"}
+**Course:** ${title || "General Studies"}
+**Syllabus Reference:** ${syllabusText ? syllabusText.substring(0, 2000) : "N/A"}
+**Total Weekly hours:** ${plan.reduce((sum, p) => sum + p.hours, 0) || 10} hours
+**Key topics:** ${plan.map((p) => p.focus).join(", ")}
 
 Generate a weekly plan in markdown:
 - Mon-Sun breakdown (show only study days)

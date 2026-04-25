@@ -1,8 +1,9 @@
-module.exports = (plan) => `
+module.exports = (plan, title, syllabusText) => `
 You are an expert academic syllabus designer. Create a structured week-by-week syllabus based on:
 
-**Course:** ${plan.courses?.[0]?.title || "Study Plan"}
-**Topics to cover:** ${plan.courses?.[0]?.topics?.map((t) => t.title).join(", ") || "General topics"}
+**Course:** ${title || "Study Plan"}
+**Uploaded Syllabus Content:** ${syllabusText || "No syllabus provided."}
+**Focus areas from survey:** ${plan.map((p) => p.focus).join(", ")}
 **Time available:** 6-8 hours per week
 **Study style:** Structured learning with weekly checkpoints
 

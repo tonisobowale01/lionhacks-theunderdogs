@@ -8,12 +8,13 @@ if (!apiKey || apiKey === "YOUR_API_KEY") {
   console.error("CRITICAL: GEMINI_API_KEY is missing or invalid in .env file.");
 }
 
-const genAI = new GoogleGenerativeAI(
-  apiKey || "",
-);
+const genAI = new GoogleGenerativeAI(apiKey || "");
 const cache = new Map();
 
-async function callGemini(prompt, cacheKey) {
+async function callGemini(prompt, cacheKey, retryCount = 0) {
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY = 5000; // 5 seconds
+
   if (cache.has(cacheKey)) {
     console.log(`Cache hit for: ${cacheKey}`);
     return cache.get(cacheKey);
@@ -23,7 +24,11 @@ async function callGemini(prompt, cacheKey) {
 
   try {
     // 3. Get the model instance first
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // Explicitly use the v1 API version to avoid 404 errors found in v1beta
+    const model = genAI.getGenerativeModel(
+      { model: "gemini-2.0-flash" },
+      { apiVersion: "v1" },
+    );
 
     // 4. Correct method call structure
     const result = await model.generateContent(prompt);
@@ -34,16 +39,27 @@ async function callGemini(prompt, cacheKey) {
     cache.set(cacheKey, text);
     return text;
   } catch (error) {
+    // Handle Rate Limiting (429)
+    const isRateLimit = error.status === 429 || error.message?.includes("429");
+
+    if (isRateLimit && retryCount < MAX_RETRIES) {
+      console.warn(
+        `Rate limit hit. Retrying in ${RETRY_DELAY / 1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      return callGemini(prompt, cacheKey, retryCount + 1);
+    }
+
     console.error("Gemini API Error:", error);
     throw error; // Let the caller handle the specific failure
   }
 }
 
-async function generateSyllabus(plan) {
+async function generateSyllabus(plan, title, syllabusText) {
   try {
     const promptGenerator = require("../prompts/syllabus");
-    const prompt = promptGenerator(plan);
-    const cacheKey = `syllabus:${JSON.stringify(plan)}`;
+    const prompt = promptGenerator(plan, title, syllabusText);
+    const cacheKey = `syllabus:${title}:${syllabusText?.length || 0}:${JSON.stringify(plan)}`;
 
     return await callGemini(prompt, cacheKey);
   } catch (error) {
@@ -52,11 +68,11 @@ async function generateSyllabus(plan) {
   }
 }
 
-async function generateDailyPlan(plan) {
+async function generateDailyPlan(plan, title, syllabusText) {
   try {
     const promptGenerator = require("../prompts/study");
-    const prompt = promptGenerator(plan);
-    const cacheKey = `daily:${JSON.stringify(plan)}`;
+    const prompt = promptGenerator(plan, title, syllabusText);
+    const cacheKey = `daily:${title}:${syllabusText?.length || 0}:${JSON.stringify(plan)}`;
 
     return await callGemini(prompt, cacheKey);
   } catch (error) {

@@ -52,13 +52,14 @@ const Upload = () => {
       await new Promise((r) => setTimeout(r, 600));
       setStage("analyzing");
       const {
-        data: { extractedTitle },
+        data: { extractedTitle, extractedText },
       } = await processSyllabus(file);
       setSyllabusTitle(extractedTitle);
       setStage("planning");
       const { data: planData } = await generateStudyPlan(
         userData,
         extractedTitle,
+        extractedText
       );
       setPlan(planData);
       setStage("done");

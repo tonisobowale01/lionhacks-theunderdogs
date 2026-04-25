@@ -1,26 +1,25 @@
-const router = require('express').Router()
-const { scoreAnswers } = require('../services/scoringService')
-const { buildPlan } = require('../services/planBuilder')
-const { generateSyllabus } = require('../services/geminiService')
+const router = require("express").Router();
+const { scoreAnswers } = require("../services/scoringService");
+const { buildPlan } = require("../services/planBuilder");
+const { generateSyllabus } = require("../services/geminiService");
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const scores = scoreAnswers(req.body)
-    const plan = buildPlan(scores)
+    const scores = scoreAnswers(req.body);
+    const plan = buildPlan(scores);
 
-    let syllabus = "AI unavailable (rate limit)"
+    let syllabus = "AI unavailable (rate limit)";
 
     try {
-      syllabus = await generateSyllabus(plan)
+      syllabus = await generateSyllabus(plan, "General Study Plan", "");
     } catch (e) {
-      console.log("AI error:", e.message)
+      console.log("AI error:", e.message);
     }
 
-    res.json({ scores, plan, syllabus })
-
+    res.json({ scores, plan, syllabus });
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: err.message });
   }
-})
+});
 
-module.exports = router
+module.exports = router;

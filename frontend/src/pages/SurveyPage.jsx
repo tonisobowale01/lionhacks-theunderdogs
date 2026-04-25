@@ -40,7 +40,7 @@ const Onboarding = () => {
       try {
         const { data } = await submitSurvey(answers);
         setUserData(answers);
-        if (data.plan) setPlan(data.plan);
+        setPlan(data);
         navigate("/upload");
       } catch (err) {
         notifications.show({

@@ -14,9 +14,11 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { IconCheck, IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
+import { useApp } from "../context/AppContext";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { setUserData } = useApp();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
 
@@ -30,6 +32,7 @@ const Onboarding = () => {
   const next = () => {
     if (!canAdvance) return;
     if (isLast) {
+      setUserData(answers);
       navigate("/upload");
     } else {
       setStep((s) => s + 1);

@@ -1,11 +1,26 @@
 function scoreAnswers(answers) {
-  const scores = {}
+  const scores = {};
+  const metadataKeys = [
+    "name",
+    "major",
+    "yearLevel",
+    "studyStyle",
+    "hoursPerWeek",
+    "goals",
+    "challenges",
+    "chronotype",
+    "environment",
+    "knowledgeLevel"
+  ];
 
   for (let topic in answers) {
-    scores[topic] = answers[topic] / 5
+    if (!metadataKeys.includes(topic)) {
+      scores[topic] =
+        typeof answers[topic] === "number" ? answers[topic] / 5 : 0.5;
+    }
   }
 
-  return scores
+  return scores;
 }
 
-module.exports = { scoreAnswers }
+module.exports = { scoreAnswers };

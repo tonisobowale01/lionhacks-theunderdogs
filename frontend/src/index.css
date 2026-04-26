@@ -83,6 +83,7 @@ h5 {
 
 .shadow-paper {
   box-shadow: var(--shadow-paper);
+  text-align: left;
 }
 
 .paper-texture {

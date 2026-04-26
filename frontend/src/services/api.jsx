@@ -12,5 +12,5 @@ export const processSyllabus = (file) => {
   });
 };
 
-export const generateStudyPlan = (userData, title, syllabusText) =>
-  axios.post(`${BASE}/api/plan/generate`, { userData, title, syllabusText });
+export const generateStudyPlan = (userData, syllabi) =>
+  axios.post(`${BASE}/api/plan/generate`, { userData, syllabi });

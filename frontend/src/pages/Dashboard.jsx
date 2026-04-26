@@ -17,7 +17,7 @@ import {
   ThemeIcon,
 } from "@mantine/core";
 import { useApp } from "../context/AppContext";
-import { generateStudyPlan } from "./mockApi";
+import { generateStudyPlan } from "../services/api";
 import {
   IconSparkles,
   IconCalendar,
@@ -45,8 +45,11 @@ const Dashboard = () => {
         hoursPerWeek: "10–15",
         goals: "",
         challenges: "",
-      }).then((p) => {
-        setPlan(p);
+      }, []).then((response) => {
+        setPlan(response.data);
+        setLoading(false);
+      }).catch((err) => {
+        console.error("Dashboard fallback error:", err);
         setLoading(false);
       });
     }
@@ -63,7 +66,7 @@ const Dashboard = () => {
     );
   }
 
-  const greeting = userData.name ? `Welcome, ${userData.name}` : "Welcome back";
+  const greeting = userData?.name ? `Welcome, ${userData.name}` : "Welcome back";
 
   return (
     <Container size="lg" pt={40} pb={96}>
@@ -76,7 +79,7 @@ const Dashboard = () => {
           <Title
             order={1}
             fw={600}
-            style={{ fontSize: "var(--mantine-font-size-xl) * 2" }}
+            style={{ fontSize: "calc(var(--mantine-font-size-xl) * 2)" }}
           >
             {greeting}.
           </Title>
@@ -172,6 +175,7 @@ function PersonaCard({ plan }) {
         position: "relative",
         background: "var(--gradient-warm)",
         border: "none",
+        textAlign: "left",
       }}
     >
       <Text
@@ -284,7 +288,7 @@ function CourseRow({ course }) {
             </Text>
           </Box>
           <Group visibleFrom="md" gap="xs">
-            {course.examDates.slice(0, 1).map((d) => (
+            {course.examDates.slice(-1).map((d) => (
               <Badge key={d.label} variant="secondary" className="font-normal">
                 {d.label} · {d.date}
               </Badge>
@@ -397,8 +401,31 @@ function totalSessions(plan) {
 }
 
 function nextDeadline(plan) {
-  const all = plan.courses.flatMap((c) => c.examDates);
-  return all[0] || { label: "None", date: "—" };
+  const all = plan.courses.flatMap((c) => c.examDates || []);
+  if (all.length === 0) return { label: "None", date: "—" };
+
+  const now = new Date().setHours(0, 0, 0, 0);
+
+  // Helper to turn strings like "Oct 12" into comparable timestamps
+  const getTime = (dateStr) => {
+    // Clean common AI prefix/suffix that breaks Date.parse
+    const cleaned = dateStr.replace(/^(Next|Expected|by|Due:)\s+/i, "").trim();
+    
+    const timestamp = Date.parse(cleaned);
+    if (!isNaN(timestamp)) return timestamp;
+
+    // Fallback for "Month Day" format without year (e.g. "Oct 12")
+    const withYear = Date.parse(`${cleaned}, ${new Date().getFullYear()}`);
+    return isNaN(withYear) ? Infinity : withYear;
+  };
+
+  // Sort dates chronologically
+  const sorted = [...all].sort((a, b) => getTime(a.date) - getTime(b.date));
+
+  // Find the first date that is today or in the future
+  const upcoming = sorted.find((d) => getTime(d.date) >= now);
+
+  return upcoming || sorted[0];
 }
 
 export default Dashboard;

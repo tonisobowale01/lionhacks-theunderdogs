@@ -10,6 +10,7 @@ import {
   Paper,
   Loader,
   Box,
+  ActionIcon,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -17,14 +18,16 @@ import {
   IconUpload,
   IconCheck,
   IconArrowRight,
+  IconX,
+  IconPlus,
 } from "@tabler/icons-react";
 import { useApp } from "../context/AppContext";
 import { processSyllabus, generateStudyPlan } from "../services/api";
 
 const Upload = () => {
   const navigate = useNavigate();
-  const { userData, setSyllabusTitle, setPlan } = useApp();
-  const [file, setFile] = useState(null);
+  const { userData, plan, setSyllabusTitle, setPlan } = useApp();
+  const [files, setFiles] = useState([]);
   const [stage, setStage] = useState("idle");
   const inputRef = useRef(null);
 
@@ -37,7 +40,7 @@ const Upload = () => {
       });
       return;
     }
-    setFile(f);
+    setFiles((prev) => [...prev, f]);
   };
 
   const onDrop = (e) => {
@@ -46,21 +49,33 @@ const Upload = () => {
   };
 
   const analyze = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
     try {
       setStage("uploading");
-      await new Promise((r) => setTimeout(r, 600));
+      const processedSyllabi = [];
+
+      // 1. Recover existing syllabi from the current plan to prevent overwriting
+      if (plan?.courses && plan?.aiContext?.syllabus) {
+        plan.courses.forEach((course, i) => {
+          // We use the stored AI response as the 'text' for re-processing
+          processedSyllabi.push({
+            title: course.title,
+            text: plan.aiContext.syllabus[i],
+          });
+        });
+      }
+      
       setStage("analyzing");
-      const {
-        data: { extractedTitle, extractedText },
-      } = await processSyllabus(file);
-      setSyllabusTitle(extractedTitle);
+      for (const file of files) {
+        const { data } = await processSyllabus(file);
+        processedSyllabi.push({ title: data.extractedTitle, text: data.extractedText });
+      }
+
+      if (processedSyllabi.length > 0) setSyllabusTitle(processedSyllabi[0].title);
+      
       setStage("planning");
-      const { data: planData } = await generateStudyPlan(
-        userData,
-        extractedTitle,
-        extractedText
-      );
+      const { data: planData } = await generateStudyPlan(userData, processedSyllabi);
+      
       setPlan(planData);
       setStage("done");
       setTimeout(() => navigate("/dashboard"), 700);
@@ -92,12 +107,12 @@ const Upload = () => {
         Hand us your syllabus.
       </Title>
       <Text mt="md" c="dimmed" size="lg">
-        PDF or plain text. We'll extract topics, exam dates, and reading weight.
+        PDF or plain text. Add as many as you need for this term.
       </Text>
 
       <Paper
         withBorder
-        p={48}
+        p={files.length > 0 ? "xl" : 48}
         mt={40}
         radius="xl"
         style={{
@@ -117,16 +132,60 @@ const Upload = () => {
           style={{ display: "none" }}
           onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
         />
-        {file ? (
-          <Group justify="center">
-            <IconFileText size={40} color="var(--mantine-color-blue-filled)" />
-            <Box style={{ textAlign: "left" }}>
-              <Text fw={500}>{file.name}</Text>
-              <Text size="sm" c="dimmed">
-                {(file.size / 1024).toFixed(1)} KB
-              </Text>
-            </Box>
-          </Group>
+        {files.length > 0 || plan?.courses?.length > 0 ? (
+          <Stack gap="sm">
+            {/* Existing courses already in the plan */}
+            {plan?.courses?.map((c, i) => (
+              <Group 
+                key={`existing-${i}`} 
+                justify="space-between" 
+                p="sm" 
+                bg="var(--mantine-color-blue-0)" 
+                style={{ borderRadius: 8, border: '1px solid var(--mantine-color-blue-2)' }}
+              >
+                <Group gap="sm">
+                  <IconCheck size={24} color="var(--mantine-color-blue-filled)" />
+                  <Box style={{ textAlign: "left" }}>
+                    <Text size="sm" fw={500}>{c.title}</Text>
+                    <Text size="xs" c="dimmed">Already in your plan</Text>
+                  </Box>
+                </Group>
+              </Group>
+            ))}
+
+            {files.map((f, i) => (
+              <Group key={i} justify="space-between" p="sm" bg="var(--mantine-color-gray-0)" style={{ borderRadius: 8 }}>
+                <Group gap="sm">
+                  <IconFileText size={24} color="var(--mantine-color-blue-filled)" />
+                  <Box style={{ textAlign: "left" }}>
+                    <Text size="sm" fw={500}>{f.name}</Text>
+                    <Text size="xs" c="dimmed">{(f.size / 1024).toFixed(1)} KB</Text>
+                  </Box>
+                </Group>
+                <ActionIcon 
+                  variant="subtle" 
+                  color="gray" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFiles(prev => prev.filter((_, idx) => idx !== i));
+                  }}
+                >
+                  <IconX size={16} />
+                </ActionIcon>
+              </Group>
+            ))}
+            <Button 
+              variant="light" 
+              leftSection={<IconPlus size={16} />} 
+              onClick={(e) => {
+                e.stopPropagation();
+                inputRef.current?.click();
+              }}
+              mt="sm"
+            >
+              Add another file
+            </Button>
+          </Stack>
         ) : (
           <Stack align="center" gap="xs">
             <IconUpload size={40} c="dimmed" />
@@ -169,7 +228,7 @@ const Upload = () => {
         </Button>
         <Button
           onClick={analyze}
-          disabled={!file || busy}
+          disabled={files.length === 0 || busy}
           size="lg"
           rightSection={
             busy ? <Loader size={16} /> : <IconArrowRight size={16} />

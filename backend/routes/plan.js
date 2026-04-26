@@ -7,167 +7,7 @@ const {
   generateDailyPlan,
 } = require("../services/geminiService");
 
-// Helper function to extract key recommendations from markdown
-function extractRecommendations(text, limit = 5) {
-  const lines = text.split("\n").filter((line) => line.trim());
-  const recommendations = [];
-
-  for (const line of lines) {
-    // Extract bullet points or key statements
-    if (line.startsWith("-") || line.startsWith("•") || line.startsWith("*")) {
-      const cleaned = line.replace(/^[-•*]\s*/, "").trim();
-      if (cleaned && !cleaned.includes("##") && !cleaned.includes("**")) {
-        recommendations.push(cleaned);
-      }
-    }
-    // Extract lines that look like motivational/actionable advice
-    else if (
-      (line.includes("Focus") ||
-        line.includes("Start") ||
-        line.includes("Use") ||
-        line.includes("Remember")) &&
-      !line.includes("#")
-    ) {
-      recommendations.push(line.trim());
-    }
-
-    if (recommendations.length >= limit) break;
-  }
-
-  return recommendations.length > 0
-    ? recommendations
-    : [
-        "Follow your personalized study schedule",
-        "Review daily and adjust as needed",
-      ];
-}
-
-// Helper function to build daily study plan from schedule text
-function buildDailyPlanFromSchedule(scheduleText) {
-  const days = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
-  const dayShorts = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const studyPlan = [];
-
-  for (let i = 0; i < dayShorts.length; i++) {
-    const dayPattern = new RegExp(`${days[i]}.*?([\\d]+)\\s*(?:min|hour)`, "i");
-    const match = scheduleText.match(dayPattern);
-    const duration = match ? parseInt(match[1]) : 60;
-
-    studyPlan.push({
-      day: dayShorts[i],
-      focus: `Study session`,
-      durationMin: duration,
-    });
-  }
-
-  return studyPlan;
-}
-
-// Helper function to extract detailed course structure from syllabus
-function extractSyllabusDetails(syllabusText) {
-  const details = {
-    weeklyBreakdown: [],
-    learningObjectives: [],
-    resources: [],
-    practiceProblems: [],
-    checkpoints: [],
-  };
-
-  // Fallback if AI failed or returned non-markdown error message
-  if (syllabusText.includes("failed") || syllabusText.length < 50) {
-    details.learningObjectives = ["Review core course concepts"];
-    details.resources = ["Course textbook", "Lecture notes"];
-    details.checkpoints = ["Weekly self-assessment"];
-    return details;
-  }
-
-  const lines = syllabusText.split("\n");
-
-  let currentSection = null;
-  let currentWeek = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Detect week headers
-    if (trimmed.match(/^#+\s*Week\s*\d+/i)) {
-      const weekMatch = trimmed.match(/Week\s*(\d+)/i);
-      if (weekMatch) {
-        currentWeek = {
-          week: parseInt(weekMatch[1]),
-          objectives: [],
-          resources: [],
-          problems: [],
-          checkpoint: null,
-        };
-        details.weeklyBreakdown.push(currentWeek);
-      }
-    }
-
-    // Detect section headers
-    if (
-      trimmed.match(
-        /^#+\s*(Learning Objectives|Resources|Practice|Checkpoint|Quiz)/i,
-      )
-    ) {
-      const match = trimmed.match(
-        /(Learning Objectives|Resources|Practice|Checkpoint|Quiz)/i,
-      );
-      if (match) {
-        currentSection = match[1].toLowerCase().replace(/\s+/g, "_");
-      }
-    }
-
-    // Extract bullet points
-    if (
-      (trimmed.startsWith("-") ||
-        trimmed.startsWith("•") ||
-        trimmed.startsWith("*")) &&
-      trimmed.length > 2
-    ) {
-      const content = trimmed.replace(/^[-•*]\s*/, "").trim();
-
-      if (
-        currentSection === "learning_objectives" ||
-        currentSection === "objectives"
-      ) {
-        if (currentWeek) {
-          currentWeek.objectives.push(content);
-        }
-        details.learningObjectives.push(content);
-      } else if (currentSection === "resources") {
-        if (currentWeek) {
-          currentWeek.resources.push(content);
-        }
-        details.resources.push(content);
-      } else if (
-        currentSection === "practice" ||
-        currentSection === "practice_problems"
-      ) {
-        if (currentWeek) {
-          currentWeek.problems.push(content);
-        }
-        details.practiceProblems.push(content);
-      }
-    }
-
-    // Extract checkpoint/quiz info
-    if (trimmed.match(/checkpoint|quiz topic/i) && currentWeek) {
-      currentWeek.checkpoint = trimmed.replace(/^[-•*]\s*/, "").trim();
-      details.checkpoints.push(currentWeek.checkpoint);
-    }
-  }
-
-  return details;
-}
+const DAY_ORDER = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
 
 // Helper function to extract course goals from userData
 function extractCourseGoals(userData) {
@@ -199,73 +39,146 @@ function extractCourseGoals(userData) {
 // POST /api/plan/generate
 router.post("/generate", async (req, res) => {
   try {
-    const { userData, title, syllabusText } = req.body;
+    const { userData, syllabi } = req.body;
+
+    // Normalize input to handle single or multiple syllabi
+    const syllabusList = Array.isArray(syllabi) ? syllabi : [];
+    const hasSyllabi = syllabusList.length > 0;
 
     // 1. Logic-based processing
     const scores = scoreAnswers(userData);
     const rawPlan = buildPlan(scores, parseInt(userData.hoursPerWeek) || 10);
 
+    // 1.5 Prepare Persona for AI context
+    const archetype = mapStudyStyleToArchetype(userData.studyStyle);
+    const persona = {
+      name: archetype,
+      description: `A ${userData.yearLevel} student majoring in ${userData.major}. Prefers ${userData.chronotype} sessions in a ${userData.environment}.`,
+      strengths: getPersonaStrengths(userData.studyStyle),
+      watchFor: getPersonaWatchouts(userData.studyStyle),
+    };
+
     // 2. AI-based enhancement (Pairing with geminiService)
-    const [aiSyllabusText, aiDailyPlanText] = await Promise.all([
-      generateSyllabus(rawPlan, title, syllabusText),
-      generateDailyPlan(rawPlan, title, syllabusText),
+    // Extract specific course data for each syllabus
+    const syllabusPromises = syllabusList.map((s) =>
+      generateSyllabus(rawPlan, s.title, s.text, persona),
+    );
+
+    // Generate ONE unified daily plan using context from all syllabi
+    const combinedSyllabusContext = hasSyllabi
+      ? syllabusList
+          .map(
+            (s) => `COURSE: ${s.title}\nCONTENT: ${s.text.substring(0, 1000)}`,
+          )
+          .join("\n\n---\n\n")
+      : "";
+
+    const [aiSyllabusResponses, aiDailyPlanText] = await Promise.all([
+      Promise.all(syllabusPromises),
+      generateDailyPlan(
+        rawPlan,
+        hasSyllabi ? syllabusList.map(s => s.title).join(", ") : "General Studies",
+        combinedSyllabusContext,
+        persona,
+      ),
     ]);
 
-    // 3. Extract recommendations from AI outputs
-    const recommendationsFromSyllabus = extractRecommendations(
-      aiSyllabusText,
-      3,
+    // 3. Parse JSON from AI (with sanitization for code fences)
+    const cleanJson = (text) => {
+      try {
+        return JSON.parse(text.replace(/```json|```/g, "").trim());
+      } catch (e) {
+        console.error("Failed to parse AI JSON:", e);
+        return null;
+      }
+    };
+
+    const syllabusResults = aiSyllabusResponses.map(
+      (resp) => cleanJson(resp) || {},
     );
-    const recommendationsFromDaily = extractRecommendations(aiDailyPlanText, 2);
+    const studyData = cleanJson(aiDailyPlanText) || {};
+
+    // 4. Consolidate recommendations
     const allRecommendations = [
-      ...recommendationsFromSyllabus,
-      ...recommendationsFromDaily,
+      ...(studyData.recommendations?.map((r) => r.text) || []),
+      ...(studyData.strategyTips || []),
     ].slice(0, 5);
 
-    // 4. Build daily plan from the daily schedule AI output
-    const studyPlan = buildDailyPlanFromSchedule(aiDailyPlanText);
-
-    // 5. Extract detailed syllabus information
-    const syllabusDetails = extractSyllabusDetails(aiSyllabusText);
+    // 5. Extract course goals
     const courseGoals = extractCourseGoals(userData);
 
-    // 6. Build persona strengths/watchouts based on study style
-    const personaStrengths = getPersonaStrengths(userData.studyStyle);
-    const personaWatchouts = getPersonaWatchouts(userData.studyStyle);
+    // 6. Map syllabus extractions to Course objects
+    const courses = hasSyllabi
+      ? syllabusResults.map((sData, idx) => ({
+          id: `gen-${idx}`,
+          code:
+            sData.courseCode ||
+            (userData.major
+              ? userData.major.substring(0, 3).toUpperCase() + (101 + idx)
+              : "STUDY"),
+          instructor: sData.instructor || "Personalized AI",
+          title: sData.courseName || syllabusList[idx].title || "Study Plan",
+          examDates: sData.keyDates || [
+            { label: "Target Completion", date: "End of Term" },
+          ],
+          topics: (sData.topics || []).map((t) => ({
+            title: t.name,
+            status: t.status === "complete" ? "mastered" : "in-progress",
+            weight: t.progressPercent || 0,
+          })),
+          studyPlan: (studyData.weeklySchedule || [])
+            .filter((entry) => {
+              const taskCourse = (entry.course || entry.courseCode || "").toLowerCase().trim();
+              const taskText = entry.task?.toLowerCase() || "";
+              const targetName = (sData.courseName || syllabusList[idx].title || "").toLowerCase().trim();
+              const targetCode = (sData.courseCode || "").toLowerCase().trim();
+              
+              if (!targetName && !targetCode) return false;
+
+              // Match if the AI tagged the course field or if the name/code appears in the task text
+              const matchesCourseField = (targetName && taskCourse.includes(targetName)) || 
+                                        (targetCode && taskCourse.includes(targetCode)) ||
+                                        (taskCourse.length > 2 && targetName.includes(taskCourse));
+
+              const matchesTaskText = (targetCode && targetCode.length > 2 && taskText.includes(targetCode)) || 
+                                     (targetName && targetName.length > 4 && taskText.includes(targetName));
+
+              return matchesCourseField || matchesTaskText;
+            })
+            .map((s) => ({
+              day: s.day.substring(0, 3),
+              focus: s.task,
+              durationMin: s.durationMin,
+            }))
+            .sort((a, b) => (DAY_ORDER[a.day] || 99) - (DAY_ORDER[b.day] || 99)),
+          weeklyBreakdown: sData.syllabusWeeks || [],
+          goals: courseGoals,
+        }))
+      : [
+          {
+            id: "gen-0",
+            code: "STUDY",
+            instructor: "Personalized AI",
+            title: "General Study Plan",
+            examDates: [{ label: "Target Completion", date: "End of Term" }],
+            topics: [],
+            studyPlan: [],
+            weeklyBreakdown: [],
+            goals: courseGoals,
+          },
+        ];
 
     // 7. Construct response matching Dashboard.jsx expectations
     const response = {
       persona: {
-        archetype: mapStudyStyleToArchetype(userData.studyStyle),
-        summary: `Tailored plan for a ${userData.yearLevel} student majoring in ${userData.major}. Optimized for your ${userData.studyStyle} study style.`,
-        strengths: personaStrengths,
-        watchouts: personaWatchouts,
+        archetype: studyData.persona?.name || archetype,
+        summary:
+          studyData.persona?.tagline ||
+          `Tailored plan for your ${userData.studyStyle} study style.`,
+        strengths: studyData.persona?.strengths || persona.strengths,
+        watchouts: studyData.persona?.watchFor || persona.watchFor,
       },
-      courses: [
-        {
-          id: "generated-1",
-          code: userData.major
-            ? userData.major.substring(0, 3).toUpperCase() + "101"
-            : "STUDY",
-          instructor: "Personalized AI",
-          title: title || "General Study Plan",
-          examDates: [{ label: "Target Completion", date: "End of Term" }],
-          topics: Object.entries(scores).map(([name, score]) => ({
-            title: name.charAt(0).toUpperCase() + name.slice(1),
-            status: score > 0.7 ? "mastered" : "in-progress",
-            weight: Math.round(score * 100),
-          })),
-          studyPlan: studyPlan,
-          // New: Detailed syllabus information
-          syllabusDetails: syllabusDetails,
-          goals: courseGoals,
-          learningObjectives: syllabusDetails.learningObjectives.slice(0, 5),
-          resources: syllabusDetails.resources.slice(0, 5),
-          practiceProblems: syllabusDetails.practiceProblems.slice(0, 5),
-          checkpoints: syllabusDetails.checkpoints.slice(0, 4),
-          weeklyBreakdown: syllabusDetails.weeklyBreakdown,
-        },
-      ],
+      courses: courses,
       recommendations: allRecommendations,
       // User context
       userDetails: {
@@ -275,9 +188,12 @@ router.post("/generate", async (req, res) => {
         studyStyle: userData.studyStyle,
         hoursPerWeek: userData.hoursPerWeek,
         challenges: userData.challenges,
+        chronotype: userData.chronotype,
+        environment: userData.environment,
+        knowledgeLevel: userData.knowledgeLevel
       },
       aiContext: {
-        syllabus: aiSyllabusText,
+        syllabus: aiSyllabusResponses,
         dailyPlan: aiDailyPlanText,
       },
     };

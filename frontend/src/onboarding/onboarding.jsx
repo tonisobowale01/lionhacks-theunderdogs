@@ -39,6 +39,27 @@ const QUESTIONS = [
     ],
   },
   {
+    key: "chronotype",
+    label: "When is your brain most active?",
+    helper: "We'll use this to schedule your hardest tasks.",
+    type: "choice",
+    options: ["Early Morning", "Mid-day", "Late Night", "Irregular"],
+  },
+  {
+    key: "environment",
+    label: "Where do you usually study?",
+    helper: "Environment affects focus strategies.",
+    type: "choice",
+    options: ["Quiet Library", "Bustling Cafe", "Home Office/Bedroom", "On the go"],
+  },
+  {
+    key: "knowledgeLevel",
+    label: "How familiar are you with these subjects?",
+    helper: "Helps us gauge the depth of your review sessions.",
+    type: "choice",
+    options: ["Complete Beginner", "Some Basics", "Fairly Confident", "Advanced/Reviewing"],
+  },
+  {
     key: "hoursPerWeek",
     label: "Realistic hours per week?",
     helper: "Outside of class, what can you sustain?",

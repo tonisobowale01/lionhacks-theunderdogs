@@ -27,7 +27,7 @@ async function callGemini(prompt, cacheKey, retryCount = 0) {
     // Explicitly use the v1 API version to avoid 404 errors found in v1beta
     const model = genAI.getGenerativeModel(
       { model: "gemini-2.0-flash" },
-      { apiVersion: "v1" },
+      { apiVersion: "v1beta" },
     );
 
     // 4. Correct method call structure
@@ -55,11 +55,11 @@ async function callGemini(prompt, cacheKey, retryCount = 0) {
   }
 }
 
-async function generateSyllabus(plan, title, syllabusText) {
+async function generateSyllabus(plan, title, syllabusText, persona) {
   try {
     const promptGenerator = require("../prompts/syllabus");
-    const prompt = promptGenerator(plan, title, syllabusText);
-    const cacheKey = `syllabus:${title}:${syllabusText?.length || 0}:${JSON.stringify(plan)}`;
+    const prompt = promptGenerator(plan, title, syllabusText, persona);
+    const cacheKey = `syllabus:${title}:${syllabusText?.length || 0}:${JSON.stringify(plan)}:${persona?.archetype}`;
 
     return await callGemini(prompt, cacheKey);
   } catch (error) {
@@ -68,11 +68,11 @@ async function generateSyllabus(plan, title, syllabusText) {
   }
 }
 
-async function generateDailyPlan(plan, title, syllabusText) {
+async function generateDailyPlan(plan, title, syllabusText, persona) {
   try {
     const promptGenerator = require("../prompts/study");
-    const prompt = promptGenerator(plan, title, syllabusText);
-    const cacheKey = `daily:${title}:${syllabusText?.length || 0}:${JSON.stringify(plan)}`;
+    const prompt = promptGenerator(plan, title, syllabusText, persona);
+    const cacheKey = `daily:${title}:${syllabusText?.length || 0}:${JSON.stringify(plan)}:${persona?.archetype}`;
 
     return await callGemini(prompt, cacheKey);
   } catch (error) {

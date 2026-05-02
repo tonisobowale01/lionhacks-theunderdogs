@@ -1,6 +1,6 @@
-# The Underdogs: AI-Powered Personal Study Planner
+# ACE: AI-Powered Personal Study Planner
 
-**The Underdogs** is a full-stack application designed to help students transform overwhelming course syllabi into actionable, personalized study plans. By leveraging Google Gemini AI, the platform analyzes user learning styles and course documents to create a custom-tailored academic roadmap.
+**Ace** is a full-stack application designed to help students transform overwhelming course syllabi into actionable, personalized study plans. By leveraging Google Gemini AI, the platform analyzes user learning styles and course documents to create a custom-tailored academic roadmap.
 
 ## 🚀 Features
 
